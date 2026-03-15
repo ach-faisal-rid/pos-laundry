@@ -44,6 +44,23 @@ class DashboardController extends Controller
                 ];
             });
 
+        $overdue = Transaksi::with('pelanggan')
+            ->where('status', '!=', 'diambil')
+            ->whereDate('tanggal', '<=', $today->copy()->subDays(3))
+            ->latest('tanggal')
+            ->limit(5)
+            ->get()
+            ->map(function ($transaksi) {
+                return [
+                    'id' => $transaksi->id,
+                    'tanggal' => $transaksi->tanggal,
+                    'status' => $transaksi->status,
+                    'pelanggan' => [
+                        'nama' => $transaksi->pelanggan?->nama,
+                    ],
+                ];
+            });
+
         return Inertia::render('Dashboard', [
             'stats' => [
                 'pendapatan_hari_ini' => $pendapatanHariIni,
@@ -53,8 +70,10 @@ class DashboardController extends Controller
                     'diambil' => $countDiambil,
                 ],
                 'dana_saldo' => $danaSaldo,
+                'overdue_count' => $overdue->count(),
             ],
             'recent' => $recentTransaksis,
+            'overdue' => $overdue,
         ]);
     }
 }

@@ -17,7 +17,7 @@ import { Head } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-export default function Dashboard({ stats, recent }) {
+export default function Dashboard({ stats, recent, overdue }) {
     const [toasts, setToasts] = useState([]);
     const knownIdsRef = useRef(new Set(recent?.map((item) => item.id) || []));
     const [animatedRevenue, setAnimatedRevenue] = useState(
@@ -247,6 +247,41 @@ export default function Dashboard({ stats, recent }) {
                         </CardContent>
                     </Card>
                 </div>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Belum Diambil &gt; 3 Hari</CardTitle>
+                        <CardDescription>
+                            Perlu follow-up pelanggan yang belum ambil.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                        {(overdue || []).length === 0 ? (
+                            <div className="text-sm text-muted-foreground">
+                                Tidak ada transaksi overdue.
+                            </div>
+                        ) : (
+                            overdue.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2"
+                                >
+                                    <div>
+                                        <div className="font-medium text-foreground">
+                                            {item.pelanggan?.nama ?? 'Pelanggan'}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {formatDate(item.tanggal)}
+                                        </div>
+                                    </div>
+                                    <span className="text-xs font-medium text-amber-700">
+                                        {item.status}
+                                    </span>
+                                </div>
+                            ))
+                        )}
+                    </CardContent>
+                </Card>
 
                 <Card>
                     <CardHeader>

@@ -16,7 +16,9 @@ import {
     LogOut,
     Menu,
     Receipt,
+    ScanLine,
     Tag,
+    Star,
     Wrench,
     User2,
     UserPlus,
@@ -55,10 +57,22 @@ export default function AuthenticatedLayout({ header, children }) {
             active: route().current('transaksi.index'),
         },
         {
+            label: 'Scan QR',
+            href: route('kasir.scan'),
+            icon: ScanLine,
+            active: route().current('kasir.scan'),
+        },
+        {
             label: 'Tarif',
             href: route('tarif.index'),
             icon: Tag,
             active: route().current('tarif.index'),
+        },
+        {
+            label: 'Diskon Loyalti',
+            href: route('loyalty-tier.index'),
+            icon: Star,
+            active: route().current('loyalty-tier.index'),
         },
         {
             label: 'Dana Perawatan',

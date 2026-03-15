@@ -7,6 +7,8 @@ use Inertia\Inertia;
 use App\Models\Pelanggan;
 use App\Models\Tarif;
 use App\Models\Transaksi;
+use App\Models\LoyaltyTier;
+use Carbon\Carbon;
 
 class TransaksiController extends Controller
 {
@@ -52,16 +54,22 @@ class TransaksiController extends Controller
 
     public function create()
     {
-        $pelanggans = Pelanggan::orderBy('nama')->get(['id', 'nama', 'no_hp']);
+        $pelanggans = Pelanggan::orderBy('nama')
+            ->withCount('transaksis')
+            ->get(['id', 'nama', 'no_hp', 'kode']);
         $tarifs = Tarif::where('aktif', true)->orderBy('nama')->get([
             'id',
             'nama',
             'harga_per_kilo',
         ]);
+        $tiers = LoyaltyTier::where('aktif', true)
+            ->orderBy('min_transaksi')
+            ->get(['id', 'kode', 'nama', 'min_transaksi', 'diskon_persen']);
 
         return Inertia::render('Transaksi/Create', [
             'pelanggans' => $pelanggans,
             'tarifs' => $tarifs,
+            'tiers' => $tiers,
         ]);
     }
 
@@ -77,6 +85,32 @@ class TransaksiController extends Controller
             'catatan' => ['nullable', 'string'],
         ]);
 
+        $pelanggan = Pelanggan::withCount('transaksis')->find($validated['pelanggan_id']);
+        $tiers = LoyaltyTier::where('aktif', true)
+            ->orderBy('min_transaksi')
+            ->get();
+
+        $diskonPersen = 0;
+        if ($pelanggan) {
+            $count = $pelanggan->transaksis_count;
+            $tier = $tiers
+                ->filter(fn ($item) => $count >= $item->min_transaksi)
+                ->last();
+            if ($tier) {
+                $diskonPersen = (float) $tier->diskon_persen;
+            }
+        }
+
+        $tanggal = Carbon::parse($validated['tanggal']);
+        $avgDays = Transaksi::where('pelanggan_id', $validated['pelanggan_id'])
+            ->whereNotNull('diambil_at')
+            ->get()
+            ->map(fn ($trx) => $trx->tanggal->diffInDays($trx->diambil_at))
+            ->average();
+        $avgDays = $avgDays ? max(2, (int) round($avgDays)) : 2;
+
+        $validated['diskon_persen'] = $diskonPersen;
+        $validated['estimasi_selesai'] = $tanggal->copy()->addDays($avgDays);
         $validated['status'] = $validated['status'] ?? 'proses';
 
         Transaksi::create($validated);
@@ -89,17 +123,23 @@ class TransaksiController extends Controller
     public function edit(Transaksi $transaksi)
     {
         $transaksi->load('pelanggan');
-        $pelanggans = Pelanggan::orderBy('nama')->get(['id', 'nama', 'no_hp']);
+        $pelanggans = Pelanggan::orderBy('nama')
+            ->withCount('transaksis')
+            ->get(['id', 'nama', 'no_hp', 'kode']);
         $tarifs = Tarif::where('aktif', true)->orderBy('nama')->get([
             'id',
             'nama',
             'harga_per_kilo',
         ]);
+        $tiers = LoyaltyTier::where('aktif', true)
+            ->orderBy('min_transaksi')
+            ->get(['id', 'kode', 'nama', 'min_transaksi', 'diskon_persen']);
 
         return Inertia::render('Transaksi/Edit', [
             'transaksi' => $transaksi,
             'pelanggans' => $pelanggans,
             'tarifs' => $tarifs,
+            'tiers' => $tiers,
         ]);
     }
 
@@ -115,6 +155,31 @@ class TransaksiController extends Controller
             'catatan' => ['nullable', 'string'],
         ]);
 
+        $pelanggan = Pelanggan::withCount('transaksis')->find($validated['pelanggan_id']);
+        $tiers = LoyaltyTier::where('aktif', true)
+            ->orderBy('min_transaksi')
+            ->get();
+        $diskonPersen = 0;
+        if ($pelanggan) {
+            $count = $pelanggan->transaksis_count;
+            $tier = $tiers
+                ->filter(fn ($item) => $count >= $item->min_transaksi)
+                ->last();
+            if ($tier) {
+                $diskonPersen = (float) $tier->diskon_persen;
+            }
+        }
+
+        $tanggal = Carbon::parse($validated['tanggal']);
+        $avgDays = Transaksi::where('pelanggan_id', $validated['pelanggan_id'])
+            ->whereNotNull('diambil_at')
+            ->get()
+            ->map(fn ($trx) => $trx->tanggal->diffInDays($trx->diambil_at))
+            ->average();
+        $avgDays = $avgDays ? max(2, (int) round($avgDays)) : 2;
+
+        $validated['diskon_persen'] = $diskonPersen;
+        $validated['estimasi_selesai'] = $tanggal->copy()->addDays($avgDays);
         $transaksi->update($validated);
 
         return redirect()
@@ -128,9 +193,18 @@ class TransaksiController extends Controller
             'status' => ['required', 'in:proses,selesai,diambil'],
         ]);
 
-        $transaksi->update([
-            'status' => $validated['status'],
-        ]);
+        $data = ['status' => $validated['status']];
+        if ($validated['status'] === 'selesai' && !$transaksi->selesai_at) {
+            $data['selesai_at'] = Carbon::now();
+        }
+        if ($validated['status'] === 'diambil' && !$transaksi->diambil_at) {
+            $data['diambil_at'] = Carbon::now();
+            if (!$transaksi->selesai_at) {
+                $data['selesai_at'] = Carbon::now();
+            }
+        }
+
+        $transaksi->update($data);
 
         return redirect()
             ->route('transaksi.index')

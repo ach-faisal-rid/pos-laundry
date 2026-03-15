@@ -29,5 +29,10 @@ class AppServiceProvider extends ServiceProvider
             $key = optional($request->user())->id ?: $request->ip();
             return Limit::perMinute(60)->by($key);
         });
+
+        RateLimiter::for('pelanggan-lookup', function (Request $request) {
+            $key = optional($request->user())->id ?: $request->ip();
+            return Limit::perMinute(60)->by($key);
+        });
     }
 }

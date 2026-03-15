@@ -23,6 +23,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/Components/ui/table';
+import QRCode from 'qrcode';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -53,6 +54,7 @@ export default function Index({ pelanggans, filters }) {
     const { flash } = usePage().props;
     const [previewRows, setPreviewRows] = useState([]);
     const [previewError, setPreviewError] = useState('');
+    const [qrMap, setQrMap] = useState({});
 
     useEffect(() => {
         setSearch(filters?.q ?? '');
@@ -251,6 +253,31 @@ export default function Index({ pelanggans, filters }) {
     const previewHasErrors = previewRows.some(
         (row) => Object.keys(row._errors).length > 0,
     );
+
+    useEffect(() => {
+        const generate = async () => {
+            const entries = await Promise.all(
+                items
+                    .filter((item) => item.kode)
+                    .map(async (item) => {
+                        try {
+                            const dataUrl = await QRCode.toDataURL(item.kode, {
+                                width: 160,
+                            });
+                            return [item.id, dataUrl];
+                        } catch {
+                            return [item.id, null];
+                        }
+                    }),
+            );
+
+            setQrMap(Object.fromEntries(entries.filter(([, value]) => value)));
+        };
+
+        if (items.length > 0) {
+            generate();
+        }
+    }, [items]);
 
     return (
         <AuthenticatedLayout header="Pelanggan">
@@ -479,6 +506,7 @@ export default function Index({ pelanggans, filters }) {
                                     <TableHead>Nama</TableHead>
                                     <TableHead>No. HP</TableHead>
                                     <TableHead>Alamat</TableHead>
+                                    <TableHead>QR</TableHead>
                                     <TableHead className="text-right">
                                         Aksi
                                     </TableHead>
@@ -488,7 +516,7 @@ export default function Index({ pelanggans, filters }) {
                                 {items.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={4}
+                                            colSpan={5}
                                             className="text-center text-sm text-muted-foreground"
                                         >
                                             Belum ada pelanggan.
@@ -503,6 +531,28 @@ export default function Index({ pelanggans, filters }) {
                                             <TableCell>{pelanggan.no_hp}</TableCell>
                                             <TableCell className="text-sm text-muted-foreground">
                                                 {pelanggan.alamat || '-'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {pelanggan.kode && qrMap[pelanggan.id] ? (
+                                                    <div className="flex flex-col items-start gap-2">
+                                                        <img
+                                                            src={qrMap[pelanggan.id]}
+                                                            alt="QR"
+                                                            className="h-16 w-16"
+                                                        />
+                                                        <a
+                                                            href={qrMap[pelanggan.id]}
+                                                            download={`qr-${pelanggan.kode}.png`}
+                                                            className="text-xs text-primary hover:underline"
+                                                        >
+                                                            Download
+                                                        </a>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Belum ada
+                                                    </span>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="inline-flex items-center gap-2">
@@ -520,6 +570,24 @@ export default function Index({ pelanggans, filters }) {
                                                             Edit
                                                         </Link>
                                                     </Button>
+                                                    {!pelanggan.kode && (
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={route(
+                                                                    'pelanggan.generate-kode',
+                                                                    pelanggan.id,
+                                                                )}
+                                                                method="patch"
+                                                                as="button"
+                                                            >
+                                                                Generate QR
+                                                            </Link>
+                                                        </Button>
+                                                    )}
                                                     <Button
                                                         variant="destructive"
                                                         size="sm"

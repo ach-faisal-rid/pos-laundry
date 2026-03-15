@@ -134,6 +134,27 @@ export default function Index({ transaksis, filters }) {
         }).format(date);
     };
 
+    const isOverdue = (tanggal, status) => {
+        if (status === 'diambil') return false;
+        const date = new Date(tanggal);
+        if (Number.isNaN(date.getTime())) return false;
+        const diffDays = Math.floor(
+            (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        return diffDays > 3;
+    };
+
+    const formatDate = (value) => {
+        if (!value) return '-';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return new Intl.DateTimeFormat('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        }).format(date);
+    };
+
     return (
         <AuthenticatedLayout header="Transaksi">
             <Head title="Transaksi" />
@@ -187,6 +208,7 @@ export default function Index({ transaksis, filters }) {
                                     <TableHead>Tanggal</TableHead>
                                     <TableHead>Pelanggan</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>Estimasi</TableHead>
                                     <TableHead>Total</TableHead>
                                     <TableHead className="text-right">
                                         Aksi
@@ -197,7 +219,7 @@ export default function Index({ transaksis, filters }) {
                                 {items.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="text-center text-sm text-muted-foreground"
                                         >
                                             Belum ada transaksi.
@@ -243,6 +265,19 @@ export default function Index({ transaksis, filters }) {
                                                         </SelectItem>
                                                     </SelectContent>
                                                 </Select>
+                                                {isOverdue(
+                                                    transaksi.tanggal,
+                                                    transaksi.status,
+                                                ) && (
+                                                    <div className="mt-2 text-xs text-amber-700">
+                                                        Belum diambil &gt; 3 hari
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDate(
+                                                    transaksi.estimasi_selesai,
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 {formatCurrency(

@@ -20,7 +20,7 @@ import {
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useMemo } from 'react';
 
-export default function Edit({ transaksi, pelanggans, tarifs }) {
+export default function Edit({ transaksi, pelanggans, tarifs, tiers }) {
     const { data, setData, put, processing, errors } = useForm({
         pelanggan_id: transaksi?.pelanggan_id
             ? String(transaksi.pelanggan_id)
@@ -38,6 +38,30 @@ export default function Edit({ transaksi, pelanggans, tarifs }) {
         const harga = Number(data.harga_per_kilo || 0);
         return berat * harga;
     }, [data.berat, data.harga_per_kilo]);
+
+    const selectedPelanggan = useMemo(
+        () =>
+            pelanggans.find(
+                (item) => String(item.id) === String(data.pelanggan_id),
+            ),
+        [pelanggans, data.pelanggan_id],
+    );
+
+    const applicableTier = useMemo(() => {
+        if (!selectedPelanggan) return null;
+        const count = selectedPelanggan.transaksis_count ?? 0;
+        const activeTiers = [...(tiers || [])].sort(
+            (a, b) => a.min_transaksi - b.min_transaksi,
+        );
+        return activeTiers.filter((tier) => count >= tier.min_transaksi).pop() || null;
+    }, [selectedPelanggan, tiers]);
+
+    const discountPercent = applicableTier?.diskon_persen ?? 0;
+    const discountNominal = useMemo(
+        () => total * (discountPercent / 100),
+        [total, discountPercent],
+    );
+    const totalAfterDiscount = total - discountNominal;
 
     const submit = (e) => {
         e.preventDefault();
@@ -213,13 +237,30 @@ export default function Edit({ transaksi, pelanggans, tarifs }) {
                             </div>
                         </div>
 
-                        <div className="rounded-lg border bg-muted/40 p-4 text-sm">
+                        <div className="rounded-lg border bg-muted/40 p-4 text-sm space-y-2">
                             <div className="flex items-center justify-between">
                                 <span className="text-muted-foreground">
-                                    Total Perkiraan
+                                    Subtotal
                                 </span>
                                 <span className="text-base font-semibold">
                                     {formatCurrency(total)}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>
+                                    Diskon {discountPercent}%{' '}
+                                    {applicableTier
+                                        ? `(Tier ${applicableTier.kode})`
+                                        : ''}
+                                </span>
+                                <span>- {formatCurrency(discountNominal)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">
+                                    Total
+                                </span>
+                                <span className="text-base font-semibold">
+                                    {formatCurrency(totalAfterDiscount)}
                                 </span>
                             </div>
                         </div>

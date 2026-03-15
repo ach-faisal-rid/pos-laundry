@@ -9,6 +9,7 @@ use App\Http\Requests\UpdatePelangganRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class PelangganController extends Controller
 {
@@ -96,9 +97,170 @@ class PelangganController extends Controller
      */
     public function edit(Pelanggan $pelanggan)
     {
+        $insights = $this->buildInsights($pelanggan);
+
         return Inertia::render('Pelanggan/Edit', [
-            'pelanggan' => $pelanggan
+            'pelanggan' => $pelanggan,
+            'history' => $insights['history'],
+            'recommendations' => $insights['recommendations'],
         ]);
+    }
+
+    public function generateKode(Pelanggan $pelanggan)
+    {
+        if (!$pelanggan->kode) {
+            do {
+                $kode = Str::upper(Str::random(8));
+            } while (Pelanggan::where('kode', $kode)->exists());
+
+            $pelanggan->update([
+                'kode' => $kode,
+            ]);
+        }
+
+        return redirect()
+            ->route('pelanggan.edit', $pelanggan->id)
+            ->with('message', 'QR code pelanggan sudah disediakan.');
+    }
+
+    public function lookupByCode(Request $request)
+    {
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:16'],
+        ]);
+
+        $pelanggan = Pelanggan::where('kode', $validated['code'])
+            ->first();
+
+        if (!$pelanggan) {
+            return response()->json([
+                'found' => false,
+                'message' => 'Pelanggan tidak ditemukan.',
+            ], 404);
+        }
+
+        $insights = $this->buildInsights($pelanggan);
+
+        return response()->json([
+            'found' => true,
+            'pelanggan' => [
+                'id' => $pelanggan->id,
+                'nama' => $pelanggan->nama,
+                'no_hp' => $pelanggan->no_hp,
+                'kode' => $pelanggan->kode,
+            ],
+            'recent' => $insights['history'],
+            'recommendations' => $insights['recommendations'],
+        ]);
+    }
+
+    public function publicStatus(string $kode)
+    {
+        $pelanggan = Pelanggan::where('kode', $kode)->first();
+
+        if (!$pelanggan) {
+            return Inertia::render('Public/LaundryStatus', [
+                'found' => false,
+            ]);
+        }
+
+        $recent = $pelanggan->transaksis()
+            ->latest('tanggal')
+            ->latest()
+            ->limit(3)
+            ->get(['id', 'tanggal', 'status', 'total_harga']);
+
+        $masked = $pelanggan->no_hp
+            ? substr($pelanggan->no_hp, 0, 4) . str_repeat('*', max(0, strlen($pelanggan->no_hp) - 7)) . substr($pelanggan->no_hp, -3)
+            : '-';
+
+        return Inertia::render('Public/LaundryStatus', [
+            'found' => true,
+            'pelanggan' => [
+                'nama' => $pelanggan->nama,
+                'no_hp' => $masked,
+                'kode' => $pelanggan->kode,
+            ],
+            'recent' => $recent,
+        ]);
+    }
+
+    private function buildInsights(Pelanggan $pelanggan): array
+    {
+        $history = $pelanggan->transaksis()
+            ->with('tarif')
+            ->latest('tanggal')
+            ->latest()
+            ->limit(6)
+            ->get()
+            ->map(function ($transaksi) {
+                return [
+                    'id' => $transaksi->id,
+                    'tanggal' => $transaksi->tanggal,
+                    'status' => $transaksi->status,
+                    'total_harga' => $transaksi->total_harga,
+                    'tarif' => $transaksi->tarif
+                        ? [
+                            'id' => $transaksi->tarif->id,
+                            'nama' => $transaksi->tarif->nama,
+                            'harga_per_kilo' => $transaksi->tarif->harga_per_kilo,
+                        ]
+                        : null,
+                ];
+            });
+
+        $totalTransaksi = $pelanggan->transaksis()->count();
+        $mostUsedTarif = $pelanggan->transaksis()
+            ->with('tarif')
+            ->get()
+            ->groupBy('tarif_id')
+            ->sortByDesc(function ($group) {
+                return $group->count();
+            })
+            ->first();
+
+        $recommendTarif = null;
+        if ($mostUsedTarif && $mostUsedTarif->first()?->tarif) {
+            $recommendTarif = $mostUsedTarif->first()->tarif->nama;
+        }
+
+        $lastTwo = $pelanggan->transaksis()
+            ->latest('tanggal')
+            ->limit(2)
+            ->get();
+        $nextEstimate = null;
+        if ($lastTwo->count() === 2) {
+            $diff = $lastTwo[1]->tanggal->diffInDays($lastTwo[0]->tanggal);
+            $avg = max(3, min(21, $diff));
+            $nextEstimate = $lastTwo[0]->tanggal->copy()->addDays($avg);
+        }
+
+        $discount = null;
+        if ($totalTransaksi >= 10) {
+            $discount = 10;
+        } elseif ($totalTransaksi >= 5) {
+            $discount = 5;
+        }
+
+        $recommendations = [
+            'tarif' => $recommendTarif
+                ? "Disarankan layanan: {$recommendTarif}."
+                : 'Belum ada rekomendasi layanan.',
+            'jadwal' => $nextEstimate
+                ? 'Perkiraan jadwal berikutnya: ' . $nextEstimate->toDateString() . '.'
+                : 'Belum cukup data untuk estimasi jadwal.',
+            'harga' => $discount
+                ? "Rekomendasi harga: diskon {$discount}% untuk pelanggan loyal."
+                : 'Rekomendasi harga: harga normal.',
+            'stat' => [
+                'total_transaksi' => $totalTransaksi,
+            ],
+        ];
+
+        return [
+            'history' => $history,
+            'recommendations' => $recommendations,
+        ];
     }
 
     /**
@@ -205,6 +367,7 @@ class PelangganController extends Controller
         $skippedExisting = 0;
         $skippedInvalid = 0;
         $seenNoHp = [];
+        $seenKode = Pelanggan::pluck('kode')->filter()->flip()->toArray();
 
         while (($line = fgets($handle)) !== false) {
             $data = str_getcsv($line, $delimiter);
@@ -252,8 +415,14 @@ class PelangganController extends Controller
                 continue;
             }
 
+            do {
+                $kode = Str::upper(Str::random(8));
+            } while (isset($seenKode[$kode]));
+            $seenKode[$kode] = true;
+
             $rows[] = [
                 'nama' => $nama,
+                'kode' => $kode,
                 'no_hp' => $noHp,
                 'alamat' => $alamat,
                 'created_at' => $now,

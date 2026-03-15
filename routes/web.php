@@ -6,6 +6,7 @@ use App\Http\Controllers\TransaksiController;
 use App\Http\Controllers\TarifController;
 use App\Http\Controllers\DanaPerawatanController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LoyaltyTierController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -32,6 +33,8 @@ Route::middleware('auth')->group(function () {
         ->name('pelanggan.template');
     Route::post('/pelanggan/import', [PelangganController::class, 'import'])
         ->name('pelanggan.import');
+    Route::patch('/pelanggan/{pelanggan}/generate-kode', [PelangganController::class, 'generateKode'])
+        ->name('pelanggan.generate-kode');
     Route::get('/pelanggan', [PelangganController::class, 'index'])
         ->middleware('throttle:pelanggan-index')
         ->name('pelanggan.index');
@@ -45,6 +48,18 @@ Route::middleware('auth')->group(function () {
     Route::resource('tarif', TarifController::class)->except(['show']);
 
     Route::resource('dana-perawatan', DanaPerawatanController::class)->except(['show']);
+
+    Route::resource('loyalty-tier', LoyaltyTierController::class)->except(['show']);
+
+    Route::get('/kasir/scan', function () {
+        return Inertia::render('Transaksi/Scan');
+    })->name('kasir.scan');
+    Route::get('/kasir/lookup', [PelangganController::class, 'lookupByCode'])
+        ->middleware('throttle:pelanggan-lookup')
+        ->name('pelanggan.lookup');
 });
+
+Route::get('/cek-laundry/{kode}', [PelangganController::class, 'publicStatus'])
+    ->name('laundry.status');
 
 require __DIR__.'/auth.php';
