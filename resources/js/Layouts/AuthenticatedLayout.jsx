@@ -1,176 +1,218 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
-import Dropdown from '@/Components/Dropdown';
-import NavLink from '@/Components/NavLink';
-import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
+import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
+import { Button } from '@/Components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetTrigger } from '@/Components/ui/sheet';
 import { Link, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import {
+    LayoutDashboard,
+    LogOut,
+    Menu,
+    Receipt,
+    Tag,
+    Wrench,
+    User2,
+    UserPlus,
+    Users,
+} from 'lucide-react';
 
 export default function AuthenticatedLayout({ header, children }) {
     const user = usePage().props.auth.user;
 
-    const [showingNavigationDropdown, setShowingNavigationDropdown] =
-        useState(false);
+    const initials =
+        user?.name
+            ?.split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0])
+            .join('')
+            .toUpperCase() || 'U';
+
+    const navItems = [
+        {
+            label: 'Dashboard',
+            href: route('dashboard'),
+            icon: LayoutDashboard,
+            active: route().current('dashboard'),
+        },
+        {
+            label: 'Pelanggan',
+            href: route('pelanggan.index'),
+            icon: Users,
+            active: route().current('pelanggan.index'),
+        },
+        {
+            label: 'Transaksi',
+            href: route('transaksi.index'),
+            icon: Receipt,
+            active: route().current('transaksi.index'),
+        },
+        {
+            label: 'Tarif',
+            href: route('tarif.index'),
+            icon: Tag,
+            active: route().current('tarif.index'),
+        },
+        {
+            label: 'Dana Perawatan',
+            href: route('dana-perawatan.index'),
+            icon: Wrench,
+            active: route().current('dana-perawatan.index'),
+        },
+    ];
 
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-            <nav className="border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex h-16 justify-between">
-                        <div className="flex">
-                            <div className="flex shrink-0 items-center">
-                                <Link href="/">
-                                    <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
-                                </Link>
-                            </div>
+        <div className="min-h-screen bg-muted/40">
+            <div className="flex min-h-screen">
+                <aside className="flex-col hidden w-64 border-r bg-background lg:flex">
+                    <div className="flex items-center h-16 gap-2 px-4 border-b">
+                        <ApplicationLogo className="w-auto h-8 fill-current text-primary" />
+                        <span className="text-sm font-semibold text-foreground">
+                            POS Laundry
+                        </span>
+                    </div>
+                    <div className="flex-1 p-4">
+                        <nav className="space-y-1">
+                            {navItems.map((item) => {
+                                const Icon = item.icon;
+                                return (
+                                    <Link
+                                        key={item.label}
+                                        href={item.href}
+                                        className={
+                                            'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ' +
+                                            (item.active
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'text-muted-foreground hover:bg-muted hover:text-foreground')
+                                        }
+                                    >
+                                        <Icon className="w-4 h-4" />
+                                        {item.label}
+                                    </Link>
+                                );
+                            })}
+                        </nav>
+                    </div>
+                </aside>
 
-                            <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink
-                                    href={route('dashboard')}
-                                    active={route().current('dashboard')}
-                                >
-                                    Dashboard
-                                </NavLink>
-                            </div>
+                <div className="flex flex-col flex-1 min-w-0">
+                    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 border-b bg-background/95 backdrop-blur lg:px-6">
+                        <div className="flex items-center gap-3">
+                            <Sheet>
+                                <SheetTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="lg:hidden"
+                                    >
+                                        <Menu className="w-5 h-5" />
+                                    </Button>
+                                </SheetTrigger>
+                                <SheetContent side="left" className="p-0">
+                                    <div className="flex items-center h-16 gap-2 px-4 border-b">
+                                        <ApplicationLogo className="w-auto h-8 fill-current text-primary" />
+                                        <span className="text-sm font-semibold text-foreground">
+                                            POS Laundry
+                                        </span>
+                                    </div>
+                                    <div className="p-4">
+                                        <nav className="space-y-1">
+                                            {navItems.map((item) => {
+                                                const Icon = item.icon;
+                                                return (
+                                                    <Link
+                                                        key={item.label}
+                                                        href={item.href}
+                                                        className={
+                                                            'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ' +
+                                                            (item.active
+                                                                ? 'bg-primary text-primary-foreground'
+                                                                : 'text-muted-foreground hover:bg-muted hover:text-foreground')
+                                                        }
+                                                    >
+                                                        <Icon className="w-4 h-4" />
+                                                        {item.label}
+                                                    </Link>
+                                                );
+                                            })}
+                                        </nav>
+                                    </div>
+                                </SheetContent>
+                            </Sheet>
+
+                            {header && (
+                                <div className="text-lg font-semibold text-foreground">
+                                    {header}
+                                </div>
+                            )}
                         </div>
 
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center">
-                            <div className="relative ms-3">
-                                <Dropdown>
-                                    <Dropdown.Trigger>
-                                        <span className="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
-                                            >
-                                                {user.name}
+                        <div className="flex items-center gap-3">
+                            <div className="hidden text-sm text-right lg:block">
+                                <div className="font-medium text-foreground">
+                                    {user.name}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {user.email}
+                                </div>
+                            </div>
 
-                                                <svg
-                                                    className="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </span>
-                                    </Dropdown.Trigger>
-
-                                    <Dropdown.Content>
-                                        <Dropdown.Link
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        className="p-0 rounded-full h-9 w-9"
+                                    >
+                                        <Avatar className="h-9 w-9">
+                                            <AvatarFallback>
+                                                {initials}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    className="w-48"
+                                    align="end"
+                                >
+                                    <DropdownMenuLabel>
+                                        Akun
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem asChild>
+                                        <Link
                                             href={route('profile.edit')}
+                                            className="flex items-center gap-2"
                                         >
+                                            <User2 className="w-4 h-4" />
                                             Profile
-                                        </Dropdown.Link>
-                                        <Dropdown.Link
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link
                                             href={route('logout')}
                                             method="post"
                                             as="button"
+                                            className="flex items-center gap-2"
                                         >
+                                            <LogOut className="w-4 h-4" />
                                             Log Out
-                                        </Dropdown.Link>
-                                    </Dropdown.Content>
-                                </Dropdown>
-                            </div>
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
+                    </header>
 
-                        <div className="-me-2 flex items-center sm:hidden">
-                            <button
-                                onClick={() =>
-                                    setShowingNavigationDropdown(
-                                        (previousState) => !previousState,
-                                    )
-                                }
-                                className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none dark:text-gray-500 dark:hover:bg-gray-900 dark:hover:text-gray-400 dark:focus:bg-gray-900 dark:focus:text-gray-400"
-                            >
-                                <svg
-                                    className="h-6 w-6"
-                                    stroke="currentColor"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        className={
-                                            !showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M4 6h16M4 12h16M4 18h16"
-                                    />
-                                    <path
-                                        className={
-                                            showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
+                    <main className="flex-1 p-4 lg:p-6">{children}</main>
                 </div>
-
-                <div
-                    className={
-                        (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' sm:hidden'
-                    }
-                >
-                    <div className="space-y-1 pb-3 pt-2">
-                        <ResponsiveNavLink
-                            href={route('dashboard')}
-                            active={route().current('dashboard')}
-                        >
-                            Dashboard
-                        </ResponsiveNavLink>
-                    </div>
-
-                    <div className="border-t border-gray-200 pb-1 pt-4 dark:border-gray-600">
-                        <div className="px-4">
-                            <div className="text-base font-medium text-gray-800 dark:text-gray-200">
-                                {user.name}
-                            </div>
-                            <div className="text-sm font-medium text-gray-500">
-                                {user.email}
-                            </div>
-                        </div>
-
-                        <div className="mt-3 space-y-1">
-                            <ResponsiveNavLink href={route('profile.edit')}>
-                                Profile
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                method="post"
-                                href={route('logout')}
-                                as="button"
-                            >
-                                Log Out
-                            </ResponsiveNavLink>
-                        </div>
-                    </div>
-                </div>
-            </nav>
-
-            {header && (
-                <header className="bg-white shadow dark:bg-gray-800">
-                    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                        {header}
-                    </div>
-                </header>
-            )}
-
-            <main>{children}</main>
+            </div>
         </div>
     );
 }
